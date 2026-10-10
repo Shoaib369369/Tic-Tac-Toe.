@@ -1,0 +1,508 @@
+<title>Tic-Tac-Toe</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=DM+Mono:wght@400;500&display=swap">
+<style>
+  /* Layout: one centered column on graph paper. Scoreboard above, board in the middle, round controls below. */
+  :root {
+    --bg: #eaf0ee;
+    --grid: #d3ddd9;
+    --surface: #f8fbfa;
+    --ink: #14213d;
+    --muted: #55637a;
+    --line: #14213d;
+    --x: #2540d9;
+    --o: #b45f06;
+    --win: rgba(37, 64, 217, 0.12);
+    --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+    --font-body: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+    --font-mono: "DM Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #10151c;
+      --grid: #1b232d;
+      --surface: #161d27;
+      --ink: #e6ebf2;
+      --muted: #93a1b5;
+      --line: #e6ebf2;
+      --x: #8aa0ff;
+      --o: #f2a444;
+      --win: rgba(138, 160, 255, 0.16);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #10151c;
+    --grid: #1b232d;
+    --surface: #161d27;
+    --ink: #e6ebf2;
+    --muted: #93a1b5;
+    --line: #e6ebf2;
+    --x: #8aa0ff;
+    --o: #f2a444;
+    --win: rgba(138, 160, 255, 0.16);
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background-color: var(--bg);
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 28px 28px;
+    color: var(--ink);
+    font-family: var(--font-body);
+    padding-inline: 16px;
+    padding-block: 28px 40px;
+    min-height: 100%;
+  }
+  main { max-width: 460px; margin-inline: auto; display: flex; flex-direction: column; gap: 22px; }
+
+  header { display: flex; flex-direction: column; gap: 4px; }
+  h1 {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: clamp(2rem, 8vw, 2.6rem);
+    letter-spacing: -0.03em;
+    line-height: 1;
+    margin: 0;
+    text-wrap: balance;
+  }
+  .sub { color: var(--muted); font-size: 0.95rem; margin: 0; }
+
+  /* Mode switch */
+  .modes { display: flex; flex-wrap: wrap; gap: 8px; }
+  .mode {
+    font: 500 0.82rem var(--font-mono);
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1.5px solid var(--grid);
+    background: var(--surface);
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .mode[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  .mode:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+
+  /* Scoreboard */
+  .scores { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: stretch; }
+  .player {
+    background: var(--surface);
+    border: 1.5px solid var(--grid);
+    border-radius: 6px;
+    padding: 10px 12px;
+    display: flex; flex-direction: column; gap: 6px;
+    min-width: 0;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  .player[data-active="true"] { border-color: var(--ink); box-shadow: 3px 3px 0 var(--ink); }
+  .player .mark { width: 22px; height: 22px; flex: none; }
+  .player-top { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .player input {
+    font: 700 1rem var(--font-body);
+    color: var(--ink);
+    background: transparent;
+    border: 0;
+    border-bottom: 1.5px dashed var(--grid);
+    padding: 2px 0;
+    width: 100%;
+    min-width: 0;
+  }
+  .player input:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; border-bottom-color: transparent; }
+  .count { font: 500 2.2rem/1 var(--font-mono); font-variant-numeric: tabular-nums; }
+  .player.x .count, .player.x .mark { color: var(--x); }
+  .player.o .count, .player.o .mark { color: var(--o); }
+  .draws {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    font-family: var(--font-mono); color: var(--muted); padding-inline: 4px;
+  }
+  .draws .count { font-size: 1.4rem; color: var(--ink); }
+  .label { font: 500 0.68rem var(--font-mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+
+  /* Status */
+  .status {
+    min-height: 2.6rem;
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    font: 700 1.15rem var(--font-display);
+    text-align: center;
+    text-wrap: balance;
+  }
+  .status .mark { width: 22px; height: 22px; flex: none; }
+  .status .x { color: var(--x); }
+  .status .o { color: var(--o); }
+
+  /* Board */
+  .board-wrap { position: relative; width: 100%; max-width: 420px; margin-inline: auto; aspect-ratio: 1; }
+  .board { display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); width: 100%; height: 100%; }
+  .cell {
+    appearance: none;
+    background: transparent;
+    border: 0;
+    border-right: 3px solid var(--line);
+    border-bottom: 3px solid var(--line);
+    padding: 14%;
+    cursor: pointer;
+    color: var(--ink);
+    display: grid; place-items: center;
+    transition: background-color .15s;
+    min-width: 0; min-height: 0;
+  }
+  .cell:nth-child(3n) { border-right-color: transparent; }
+  .cell:nth-child(n+7) { border-bottom-color: transparent; }
+  .cell:hover:not(:disabled) { background: color-mix(in srgb, var(--ink) 6%, transparent); }
+  .cell:focus-visible { outline: 3px solid var(--ink); outline-offset: -6px; }
+  .cell:disabled { cursor: default; }
+  .cell.win { background: var(--win); }
+  .cell svg { width: 100%; height: 100%; overflow: visible; }
+  .cell .x-mark { color: var(--x); }
+  .cell .o-mark { color: var(--o); }
+  .stroke {
+    fill: none; stroke: currentColor; stroke-width: 9; stroke-linecap: round;
+    stroke-dasharray: 1; stroke-dashoffset: 0;
+    animation: draw .28s ease-out both;
+  }
+  .stroke.b { animation-delay: .12s; }
+  @keyframes draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+  .strike { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  .strike line { stroke: var(--ink); stroke-width: 5; stroke-linecap: round; stroke-dasharray: 1; animation: draw .4s ease-out both; }
+
+  /* Controls */
+  .actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+  button.btn {
+    font: 700 0.95rem var(--font-body);
+    padding: 10px 18px;
+    border-radius: 6px;
+    border: 1.5px solid var(--ink);
+    background: var(--surface);
+    color: var(--ink);
+    cursor: pointer;
+  }
+  button.btn.primary { background: var(--ink); color: var(--bg); }
+  button.btn:hover { transform: translate(-1px, -1px); box-shadow: 2px 2px 0 var(--ink); }
+  button.btn:active { transform: none; box-shadow: none; }
+  button.btn:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+
+  .hint { color: var(--muted); font-size: 0.85rem; text-align: center; margin: 0; }
+
+  @media (max-width: 380px) {
+    .scores { grid-template-columns: 1fr 1fr; }
+    .draws { grid-column: 1 / -1; flex-direction: row; gap: 10px; order: 3; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .stroke, .strike line { animation: none; }
+    button.btn:hover { transform: none; box-shadow: none; }
+  }
+</style>
+
+<main>
+  <header>
+    <h1>Tic-Tac-Toe</h1>
+    <p class="sub">Play a friend on one screen or take on the computer. The first to line up three wins.</p>
+  </header>
+
+  <div class="modes" role="group" aria-label="Game mode">
+    <button type="button" class="mode" data-mode="two" aria-pressed="true">2 Players</button>
+    <button type="button" class="mode" data-mode="easy" aria-pressed="false">Computer · Easy</button>
+    <button type="button" class="mode" data-mode="hard" aria-pressed="false">Computer · Hard</button>
+  </div>
+
+  <section class="scores" aria-label="Scoreboard">
+    <div class="player x" id="card-X" data-active="true">
+      <div class="player-top">
+        <svg class="mark" viewBox="0 0 100 100" aria-hidden="true"><path d="M22 22 L78 78 M78 22 L22 78" fill="none" stroke="currentColor" stroke-width="12" stroke-linecap="round"/></svg>
+        <input id="name-X" type="text" value="Player X" maxlength="14" aria-label="Name of the player using X">
+      </div>
+      <div class="count" id="score-X">0</div>
+    </div>
+    <div class="draws">
+      <span class="label">Draws</span>
+      <span class="count" id="score-D">0</span>
+    </div>
+    <div class="player o" id="card-O" data-active="false">
+      <div class="player-top">
+        <svg class="mark" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="30" fill="none" stroke="currentColor" stroke-width="12"/></svg>
+        <input id="name-O" type="text" value="Player O" maxlength="14" aria-label="Name of the player using O">
+      </div>
+      <div class="count" id="score-O">0</div>
+    </div>
+  </section>
+
+  <div class="status" id="status" role="status" aria-live="polite"></div>
+
+  <div class="board-wrap">
+    <div class="board" id="board" role="group" aria-label="Game board"></div>
+    <svg class="strike" id="strike" viewBox="0 0 300 300" aria-hidden="true"></svg>
+  </div>
+
+  <div class="actions">
+    <button class="btn primary" id="next" type="button">Next round</button>
+    <button class="btn" id="reset" type="button">Reset scores</button>
+  </div>
+  <p class="hint">The player who goes first switches every round.</p>
+</main>
+
+<script>
+(function () {
+  var LINES = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+  var POS = ['top left','top middle','top right','middle left','center','middle right','bottom left','bottom middle','bottom right'];
+  var state = { board: Array(9).fill(null), turn: 'X', starter: 'X', over: false, winLine: null, scores: { X: 0, O: 0, D: 0 }, mode: 'two', locked: false, timer: null };
+  var savedO = 'Player O';
+
+  var boardEl = document.getElementById('board');
+  var strikeEl = document.getElementById('strike');
+  var statusEl = document.getElementById('status');
+  var nameEls = { X: document.getElementById('name-X'), O: document.getElementById('name-O') };
+  var cells = [];
+
+  function name(p) {
+    var v = nameEls[p].value.trim();
+    return v || ('Player ' + p);
+  }
+
+  function markSvg(p) {
+    var ns = 'http://www.w3.org/2000/svg';
+    var svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('viewBox', '0 0 100 100');
+    svg.setAttribute('aria-hidden', 'true');
+    svg.setAttribute('class', p === 'X' ? 'x-mark' : 'o-mark');
+    if (p === 'X') {
+      [['M12 12 L88 88', ''], ['M88 12 L12 88', ' b']].forEach(function (d) {
+        var path = document.createElementNS(ns, 'path');
+        path.setAttribute('d', d[0]);
+        path.setAttribute('pathLength', '1');
+        path.setAttribute('class', 'stroke' + d[1]);
+        svg.appendChild(path);
+      });
+    } else {
+      var c = document.createElementNS(ns, 'circle');
+      c.setAttribute('cx', '50'); c.setAttribute('cy', '50'); c.setAttribute('r', '38');
+      c.setAttribute('pathLength', '1');
+      c.setAttribute('class', 'stroke');
+      svg.appendChild(c);
+    }
+    return svg;
+  }
+
+  function statusMark(p) {
+    var wrap = document.createElement('span');
+    wrap.className = p === 'X' ? 'x' : 'o';
+    var ns = 'http://www.w3.org/2000/svg';
+    var svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('viewBox', '0 0 100 100');
+    svg.setAttribute('class', 'mark');
+    svg.setAttribute('aria-hidden', 'true');
+    if (p === 'X') {
+      var path = document.createElementNS(ns, 'path');
+      path.setAttribute('d', 'M22 22 L78 78 M78 22 L22 78');
+      path.setAttribute('fill', 'none'); path.setAttribute('stroke', 'currentColor');
+      path.setAttribute('stroke-width', '12'); path.setAttribute('stroke-linecap', 'round');
+      svg.appendChild(path);
+    } else {
+      var c = document.createElementNS(ns, 'circle');
+      c.setAttribute('cx', '50'); c.setAttribute('cy', '50'); c.setAttribute('r', '30');
+      c.setAttribute('fill', 'none'); c.setAttribute('stroke', 'currentColor'); c.setAttribute('stroke-width', '12');
+      svg.appendChild(c);
+    }
+    wrap.appendChild(svg);
+    return wrap;
+  }
+
+  function buildBoard() {
+    for (var i = 0; i < 9; i++) {
+      (function (i) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'cell';
+        b.addEventListener('click', function () { play(i); });
+        boardEl.appendChild(b);
+        cells.push(b);
+      })(i);
+    }
+  }
+
+  function findWinner() {
+    for (var i = 0; i < LINES.length; i++) {
+      var l = LINES[i], a = state.board[l[0]];
+      if (a && a === state.board[l[1]] && a === state.board[l[2]]) return { player: a, line: l };
+    }
+    return null;
+  }
+
+  function play(i, fromComputer) {
+    if (state.over || (state.locked && !fromComputer) || state.board[i]) return;
+    state.board[i] = state.turn;
+    var w = findWinner();
+    if (w) {
+      state.over = true;
+      state.winLine = w.line;
+      state.scores[w.player]++;
+    } else if (state.board.every(Boolean)) {
+      state.over = true;
+      state.scores.D++;
+    } else {
+      state.turn = state.turn === 'X' ? 'O' : 'X';
+    }
+    render(i);
+    maybeComputer();
+  }
+
+  function winnerOf(b) {
+    for (var k = 0; k < LINES.length; k++) {
+      var l = LINES[k];
+      if (b[l[0]] && b[l[0]] === b[l[1]] && b[l[0]] === b[l[2]]) return b[l[0]];
+    }
+    return null;
+  }
+
+  function minimax(b, p, depth) {
+    var w = winnerOf(b);
+    if (w === 'O') return 10 - depth;
+    if (w === 'X') return depth - 10;
+    if (b.every(Boolean)) return 0;
+    var best = p === 'O' ? -100 : 100;
+    for (var k = 0; k < 9; k++) {
+      if (b[k]) continue;
+      b[k] = p;
+      var s = minimax(b, p === 'O' ? 'X' : 'O', depth + 1);
+      b[k] = null;
+      best = p === 'O' ? Math.max(best, s) : Math.min(best, s);
+    }
+    return best;
+  }
+
+  function pickMove() {
+    var empty = [];
+    state.board.forEach(function (v, k) { if (!v) empty.push(k); });
+    if (state.mode === 'easy') return empty[Math.floor(Math.random() * empty.length)];
+    var b = state.board.slice(), bestScore = -100, choices = [];
+    empty.forEach(function (k) {
+      b[k] = 'O';
+      var s = minimax(b, 'X', 1);
+      b[k] = null;
+      if (s > bestScore) { bestScore = s; choices = [k]; }
+      else if (s === bestScore) choices.push(k);
+    });
+    return choices[Math.floor(Math.random() * choices.length)];
+  }
+
+  function maybeComputer() {
+    if (state.mode === 'two' || state.over || state.turn !== 'O') return;
+    state.locked = true;
+    render();
+    clearTimeout(state.timer);
+    state.timer = setTimeout(function () {
+      var idx = pickMove();
+      state.locked = false;
+      play(idx, true);
+    }, 500);
+  }
+
+  function setMode(mode) {
+    if (mode === state.mode) return;
+    state.mode = mode;
+    if (mode === 'two') {
+      nameEls.O.readOnly = false;
+      nameEls.O.value = savedO;
+    } else {
+      if (!nameEls.O.readOnly) savedO = nameEls.O.value;
+      nameEls.O.readOnly = true;
+      nameEls.O.value = 'Computer';
+    }
+    resetScores();
+  }
+
+  function drawStrike() {
+    strikeEl.innerHTML = '';
+    if (!state.winLine) return;
+    var a = state.winLine[0], b = state.winLine[2];
+    function c(i) { return [50 + (i % 3) * 100, 50 + Math.floor(i / 3) * 100]; }
+    var p1 = c(a), p2 = c(b);
+    var dx = p2[0] - p1[0], dy = p2[1] - p1[1], len = Math.sqrt(dx * dx + dy * dy);
+    var ux = dx / len, uy = dy / len, pad = 28;
+    var ns = 'http://www.w3.org/2000/svg';
+    var line = document.createElementNS(ns, 'line');
+    line.setAttribute('x1', p1[0] - ux * pad); line.setAttribute('y1', p1[1] - uy * pad);
+    line.setAttribute('x2', p2[0] + ux * pad); line.setAttribute('y2', p2[1] + uy * pad);
+    line.setAttribute('pathLength', '1');
+    strikeEl.appendChild(line);
+  }
+
+  function render(justPlayed) {
+    cells.forEach(function (el, i) {
+      var v = state.board[i];
+      var hadMark = el.firstChild;
+      if (v && (!hadMark || i === justPlayed)) {
+        el.innerHTML = '';
+        el.appendChild(markSvg(v));
+      } else if (!v) {
+        el.innerHTML = '';
+      }
+      el.disabled = state.over || state.locked || !!v;
+      el.classList.toggle('win', !!state.winLine && state.winLine.indexOf(i) > -1);
+      el.setAttribute('aria-label', POS[i] + ', ' + (v ? v : 'empty'));
+    });
+
+    ['X', 'O'].forEach(function (p) {
+      document.getElementById('score-' + p).textContent = state.scores[p];
+      document.getElementById('card-' + p).dataset.active = String(!state.over && state.turn === p);
+    });
+    document.getElementById('score-D').textContent = state.scores.D;
+    Array.prototype.forEach.call(document.querySelectorAll('.mode'), function (btn) {
+      btn.setAttribute('aria-pressed', String(btn.dataset.mode === state.mode));
+    });
+
+    statusEl.innerHTML = '';
+    var w = state.winLine ? state.board[state.winLine[0]] : null;
+    if (w) {
+      statusEl.appendChild(statusMark(w));
+      statusEl.appendChild(document.createTextNode(name(w) + ' wins the round'));
+    } else if (state.over) {
+      statusEl.appendChild(document.createTextNode("It's a draw. Nobody got three in a row."));
+    } else if (state.locked) {
+      statusEl.appendChild(statusMark('O'));
+      statusEl.appendChild(document.createTextNode(name('O') + ' is thinking…'));
+    } else {
+      statusEl.appendChild(statusMark(state.turn));
+      statusEl.appendChild(document.createTextNode(name(state.turn) + ', your move'));
+    }
+    drawStrike();
+    document.getElementById('next').textContent = state.over ? 'Play again' : 'Next round';
+  }
+
+  function nextRound() {
+    clearTimeout(state.timer);
+    state.locked = false;
+    state.starter = state.starter === 'X' ? 'O' : 'X';
+    state.turn = state.starter;
+    state.board = Array(9).fill(null);
+    state.over = false;
+    state.winLine = null;
+    render();
+    maybeComputer();
+  }
+
+  function resetScores() {
+    clearTimeout(state.timer);
+    state.locked = false;
+    state.scores = { X: 0, O: 0, D: 0 };
+    state.starter = 'X';
+    state.turn = 'X';
+    state.board = Array(9).fill(null);
+    state.over = false;
+    state.winLine = null;
+    render();
+  }
+
+  Array.prototype.forEach.call(document.querySelectorAll('.mode'), function (btn) {
+    btn.addEventListener('click', function () { setMode(btn.dataset.mode); });
+  });
+  document.getElementById('next').addEventListener('click', nextRound);
+  document.getElementById('reset').addEventListener('click', resetScores);
+  ['X', 'O'].forEach(function (p) { nameEls[p].addEventListener('input', function () { render(); }); });
+
+  buildBoard();
+  render();
+})();
+</script>
